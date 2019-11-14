@@ -14,7 +14,7 @@ public class PublisherStub implements Publisher {
 
   @Override
   public void publish(Message message) {
-    throw new UnsupportedOperationException("Not supported yet."); //To change body of generated methods, choose Tools | Templates.
+    apiREST_Message.createMessage(message);
   }
   
   public Topic topic() {
