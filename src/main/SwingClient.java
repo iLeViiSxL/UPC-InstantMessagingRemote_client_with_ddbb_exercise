@@ -119,19 +119,24 @@ public class SwingClient {
         // - Retrieve list of messages and show them on screen
         
         // - Restore publisher
-        topicManager.removePublisherFromTopic(publisherTopic);
-        // - Restore susbscriptions
-        for (Map.Entry<Topic, Subscriber> entry : my_subscriptions.entrySet()) {
-            Topic key = entry.getKey();
-            Subscriber value = entry.getValue();
-            topicManager.unsubscribe(key, value);
+        if(topicManager!=null){
+            
         }
+        publisher = topicManager.publisherOf();
         
-        WebSocketClient.addSubscriber(publisherTopic, my_subscriptions.get(publisherTopic));
-        java.util.List<Message> arMessages = apiREST.apiREST_Message.messagesFromTopic(publisherTopic);
-        for(Message m : arMessages){
-            messages_TextArea.append(m.topic+" : "+m.content+ "\n");
-        }
+        // - Restore susbscriptions
+        List<entity.Subscriber> initSubscribers =  topicManager.mySubscriptions();
+        
+        initSubscribers.forEach(sub ->{
+            SubscriberImpl subscriberImpl = new SubscriberImpl(SwingClient.this);
+            my_subscriptions.put(sub.getTopic(),subscriberImpl);
+            WebSocketClient.addSubscriber(sub.getTopic(), subscriberImpl);
+            java.util.List<Message> arMessages = apiREST.apiREST_Message.messagesFromTopic(sub.getTopic());
+                for(Message m : arMessages){
+                    messages_TextArea.append(m.topic+" : "+m.content+ "\n");
+                }
+        });
+        
         
     }
 

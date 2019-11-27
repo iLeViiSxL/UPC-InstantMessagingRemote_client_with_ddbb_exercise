@@ -88,7 +88,10 @@ public class TopicManagerStub implements TopicManager {
     @Override
     public Publisher publisherOf() {
         entity.Publisher publisher = apiREST_Publisher.PublisherOf(user);
-        PublisherStub p = new PublisherStub(publisher.getTopic());
+        PublisherStub p = null;
+        if(publisher!=null){
+            p = new PublisherStub(publisher.getTopic());
+        }  
         return p;
     }
 
