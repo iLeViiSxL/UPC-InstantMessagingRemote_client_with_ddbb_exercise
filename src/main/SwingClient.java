@@ -11,6 +11,11 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
+import javax.swing.text.BadLocationException;
+import javax.swing.text.DefaultHighlighter;
+import javax.swing.text.Highlighter;
 import publisher.Publisher;
 import subscriber.Subscriber;
 import topicmanager.TopicManager;
@@ -23,6 +28,7 @@ public class SwingClient {
     public Map<Topic, Subscriber> my_subscriptions;
     Publisher publisher;
     Topic publisherTopic;
+    String login;
 
     JFrame frame;
     JTextArea topic_list_TextArea;
@@ -40,7 +46,7 @@ public class SwingClient {
 
     public void createAndShowGUI() {
 
-        String login = ((TopicManagerStub) topicManager).user.getLogin();
+        login = ((TopicManagerStub) topicManager).user.getLogin();
         frame = new JFrame("Publisher/Subscriber demo, user : " + login);
         frame.setSize(300, 300);
         frame.addWindowListener(new CloseWindowHandler());
@@ -117,27 +123,26 @@ public class SwingClient {
         // - Don't forget to
         // - WebSocketClient.addSubscriber(topic, my_subscriptions.get(topic));
         // - Retrieve list of messages and show them on screen
-        
+
         // - Restore publisher
-        if(topicManager!=null){
-            
+        if (topicManager != null) {
+
         }
         publisher = topicManager.publisherOf();
-        
+
         // - Restore susbscriptions
-        List<entity.Subscriber> initSubscribers =  topicManager.mySubscriptions();
-        
-        initSubscribers.forEach(sub ->{
+        List<entity.Subscriber> initSubscribers = topicManager.mySubscriptions();
+
+        initSubscribers.forEach(sub -> {
             SubscriberImpl subscriberImpl = new SubscriberImpl(SwingClient.this);
-            my_subscriptions.put(sub.getTopic(),subscriberImpl);
+            my_subscriptions.put(sub.getTopic(), subscriberImpl);
             WebSocketClient.addSubscriber(sub.getTopic(), subscriberImpl);
             java.util.List<Message> arMessages = apiREST.apiREST_Message.messagesFromTopic(sub.getTopic());
-                for(Message m : arMessages){
-                    messages_TextArea.append(m.topic+" : "+m.content+ "\n");
-                }
+            for (Message m : arMessages) {
+                messages_TextArea.append(m.topic + " : " + m.content + "\n");
+            }
         });
-        
-        
+
     }
 
     class showTopicsHandler implements ActionListener {
@@ -174,6 +179,7 @@ public class SwingClient {
             if (subscription_check.result == Subscription_check.Result.OKAY) {
                 my_subscriptions.put(subscription_check.topic, subscriberImpl);
                 messages_TextArea.append("Subscribe successful to: " + subscriberTopicText + "\r\n");
+                publisher.publish(new Message(subscription_check.topic, "New subscriber [" + login + "]"));
             } else {
                 messages_TextArea.append("Impossible to subscribe to: " + subscriberTopicText + " Cause : " + subscription_check.result + "\r\n");
             }
@@ -198,19 +204,75 @@ public class SwingClient {
 //            if (subscriberImpl != null) {
 //                subscriberImpl.onClose(new Subscription_close(new Topic(subscriberTopicText), Subscription_close.Cause.SUBSCRIBER));
 //            }
-
+            publisher.publish(new Message(t, "Subscriber [" + login + "] is leaving.. "));
             Subscription_check subscription_check = topicManager.unsubscribe(t, subscriberImpl);
 
             my_subscriptions.remove(t);
+
         }
     }
 
     class postEventHandler implements ActionListener {
 
         public void actionPerformed(ActionEvent e) {
-            String subscriberTopicText = argument_TextField.getText();
-            publisher.publish(new Message(publisherTopic, subscriberTopicText));
-            messages_TextArea.append(publisherTopic.name + " : " + subscriberTopicText + "\n");
+            if (publisherTopic == null) {
+                messages_TextArea.append("Sorry you're not a publisher");
+            } else {
+                String subscriberTopicText = argument_TextField.getText();
+                System.out.println("");
+                Message msg = new Message(publisherTopic, subscriberTopicText);
+                publisher.publish(msg);
+                ColorArea(messages_TextArea, msg);
+            }
+
+        }
+    }
+
+    public static void ColorArea(JTextArea j, Message message) {
+        try {
+
+            boolean color = false;
+
+            j.append(message.topic.name + ": ");
+            String lastWord = message.content.substring(message.content.lastIndexOf(" ") + 1);
+            System.out.println("lastWord : " + lastWord);
+
+            int lenghtTextArea = j.getText().length();
+
+            System.out.println("lenghtTextArea : " + lenghtTextArea);
+            System.out.println("message.content : " + message.content.length());
+            
+            Highlighter.HighlightPainter Painter = new DefaultHighlighter.DefaultHighlightPainter(Color.white);
+            
+            switch (lastWord) {
+                case "/red":
+                    Painter = new DefaultHighlighter.DefaultHighlightPainter(Color.RED);
+                    color = true;
+                    break;
+                case "/yellow":
+                    Painter = new DefaultHighlighter.DefaultHighlightPainter(Color.YELLOW);
+                    color = true;
+                    break;
+                case "/green":
+                    Painter = new DefaultHighlighter.DefaultHighlightPainter(Color.GREEN);
+                    color = true;
+                    break;
+                default:
+
+            }
+
+            if (color) {
+                String newString = message.content.substring(0, message.content.length() - lastWord.length());
+                j.append(newString + "\n");
+                j.getHighlighter().addHighlight(lenghtTextArea, lenghtTextArea + newString.length()-1 , Painter);
+
+            } else {
+                j.append(message.content + "\n");
+                j.getHighlighter().addHighlight(lenghtTextArea, lenghtTextArea + message.content.length()-1 , Painter);
+            }
+
+        } catch (BadLocationException ex) {
+            Logger.getLogger(SubscriberImpl.class.getName()).log(Level.SEVERE, null, ex);
         }
     }
 
